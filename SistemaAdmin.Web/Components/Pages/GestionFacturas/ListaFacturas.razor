@@ -1,0 +1,69 @@
+﻿@page "/facturas"
+@namespace SistemaAdmin.Web.Components.Pages.GestionFacturas
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject FacturaService FacturaService
+@rendermode InteractiveServer
+
+<PageTitle>Facturación</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Facturas</h3>
+    <a href="/facturas/nueva" class="btn btn-primary">
+        <span class="bi bi-plus-lg me-1"></span> Nueva Factura
+    </a>
+</div>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (!facturas.Any())
+{
+    <p class="text-muted">No hay facturas registradas.</p>
+}
+else
+{
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>N° Factura</th>
+                <th>Cliente</th>
+                <th>Fecha</th>
+                <th>Subtotal</th>
+                <th>ISV (15%)</th>
+                <th>Total</th>
+                <th>Detalle</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var factura in facturas)
+            {
+                <tr>
+                    <td><span class="badge bg-secondary">@factura.NameFactura</span></td>
+                    <td>@factura.ClienteName</td>
+                    <td>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")</td>
+                    <td>L. @factura.Subtotal.ToString("N2")</td>
+                    <td>L. @factura.ISV.ToString("N2")</td>
+                    <td><strong>L. @factura.Total.ToString("N2")</strong></td>
+                    <td>
+                        <a href="/facturas/@factura.Id" class="btn btn-outline-primary">
+                            <span class="bi bi-eye-fill me-1"></span> Ver
+                        </a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Factura> facturas = [];
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        facturas = (await FacturaService.ObtenerTodosAsync()).ToList();
+        cargando = false;
+    }
+}

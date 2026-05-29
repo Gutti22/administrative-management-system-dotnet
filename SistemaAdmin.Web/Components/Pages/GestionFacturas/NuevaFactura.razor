@@ -1,0 +1,261 @@
+﻿@page "/facturas/nueva"
+@namespace SistemaAdmin.Web.Components.Pages.GestionFacturas
+@using SistemaAdmin.Application.DTOs
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject FacturaService FacturaService
+@inject ClienteService ClienteService
+@inject ProductoService ProductoService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Nueva Factura</PageTitle>
+
+<div class="d-flex align-items-center mb-3">
+    <a href="/facturas" class="btn btn-outline-secondary me-3">
+        <span class="bi bi-arrow-left"></span>
+    </a>
+    <h3 class="mb-0">Nueva Factura</h3>
+</div>
+
+<div class="row g-4">
+
+    @* ── Columna izquierda: formulario ── *@
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-body">
+
+                @* Cliente *@
+                <div class="mb-3">
+                    <label class="form-label">Cliente <span class="text-danger">*</span></label>
+                    <select class="form-select @(mostrarErrorCliente ? "is-invalid" : "")"
+                            @bind="clienteSeleccionadoId">
+                        <option value="0">-- Seleccione un cliente --</option>
+                        @foreach (var c in clientes)
+                        {
+                            <option value="@c.Id">@c.Nombre</option>
+                        }
+                    </select>
+                    @if (mostrarErrorCliente)
+                    {
+                        <div class="invalid-feedback">Debe seleccionar un cliente.</div>
+                    }
+                </div>
+
+                @* Selector de producto *@
+                <div class="mb-3">
+                    <label class="form-label">Agregar Producto</label>
+                    <div class="input-group">
+                        <select class="form-select" @bind="productoSeleccionadoId">
+                            <option value="0">-- Seleccione un producto --</option>
+                            @foreach (var p in productosDisponibles)
+                            {
+                                <option value="@p.Id">@p.Nombre — L. @p.Precio.ToString("N2") (Stock: @p.Stock)</option>
+                            }
+                        </select>
+                        <input type="number" class="form-control" style="max-width:90px;"
+                               min="1" @bind="cantidadAgregar" placeholder="Cant." />
+                        <button class="btn btn-outline-success" @onclick="AgregarProducto">
+                            <span class="bi bi-plus-lg"></span>
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(errorProducto))
+                    {
+                        <div class="text-danger small mt-1">@errorProducto</div>
+                    }
+                </div>
+
+                @* Tabla de detalle *@
+                @if (detalles.Any())
+                {
+                    <table class="table table-bordered table-sm">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th class="text-center">Cant.</th>
+                                <th class="text-end">Precio</th>
+                                <th class="text-end">Subtotal</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in detalles)
+                            {
+                                <tr>
+                                    <td>@item.ProductoNombre</td>
+                                    <td class="text-center">@item.Cantidad</td>
+                                    <td class="text-end">L. @item.PrecioUnitario.ToString("N2")</td>
+                                    <td class="text-end">L. @(item.Cantidad * item.PrecioUnitario).ToString("N2")</td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => QuitarProducto(item)">
+                                            ✕
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted small">Aún no has agregado productos.</p>
+                }
+
+            </div>
+        </div>
+    </div>
+
+    @* ── Columna derecha: resumen ── *@
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header"><strong>Resumen</strong></div>
+            <div class="card-body">
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Subtotal</span>
+                    <span>L. @Subtotal.ToString("N2")</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span>ISV (15%)</span>
+                    <span>L. @ISV.ToString("N2")</span>
+                </div>
+                <hr />
+                <div class="d-flex justify-content-between">
+                    <strong>Total</strong>
+                    <strong>L. @Total.ToString("N2")</strong>
+                </div>
+
+                @if (!string.IsNullOrEmpty(mensaje))
+                {
+                    <div class="alert @(exito ? "alert-success" : "alert-danger") mt-3">
+                        @mensaje
+                    </div>
+                }
+
+                <button class="btn btn-primary w-100 mt-3"
+                        @onclick="GuardarFactura"
+                        disabled="@(guardando || !detalles.Any())">
+                    @if (guardando)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1"></span>
+                    }
+                    Emitir Factura
+                </button>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private List<Clientes> clientes = [];
+    private List<Producto> productosDisponibles = [];
+    private List<FacturaDetalleDto> detalles = [];
+
+    private int clienteSeleccionadoId = 0;
+    private int productoSeleccionadoId = 0;
+    private int cantidadAgregar = 1;
+    private string errorProducto = string.Empty;
+    private string mensaje = string.Empty;
+    private bool mostrarErrorCliente;
+    private bool exito;
+    private bool guardando;
+
+    private decimal Subtotal => detalles.Sum(d => d.Cantidad * d.PrecioUnitario);
+    private decimal ISV => Math.Round(Subtotal * 0.15m, 2);
+    private decimal Total => Subtotal + ISV;
+
+    protected override async Task OnInitializedAsync()
+    {
+        clientes = (await ClienteService.ObtenerTodosAsync())
+                                .Where(c => c.Estado).ToList();
+        productosDisponibles = (await ProductoService.ObtenerActivosAsync()).ToList();
+    }
+
+    private void AgregarProducto()
+    {
+        errorProducto = string.Empty;
+
+        if (productoSeleccionadoId == 0)
+        {
+            errorProducto = "Seleccione un producto.";
+            return;
+        }
+
+        if (cantidadAgregar <= 0)
+        {
+            errorProducto = "La cantidad debe ser mayor a cero.";
+            return;
+        }
+
+        var producto = productosDisponibles.First(p => p.Id == productoSeleccionadoId);
+
+        var stockUsado = detalles
+            .Where(d => d.ProductoId == productoSeleccionadoId)
+            .Sum(d => d.Cantidad);
+
+        if (stockUsado + cantidadAgregar > producto.Stock)
+        {
+            errorProducto = $"Stock insuficiente. Disponible: {producto.Stock - stockUsado}.";
+            return;
+        }
+
+        var existente = detalles.FirstOrDefault(d => d.ProductoId == productoSeleccionadoId);
+        if (existente is not null)
+        {
+            existente.Cantidad += cantidadAgregar;
+        }
+        else
+        {
+            detalles.Add(new FacturaDetalleDto
+                {
+                    ProductoId = producto.Id,
+                    ProductoNombre = producto.Nombre,
+                    Cantidad = cantidadAgregar,
+                    PrecioUnitario = producto.Precio
+                });
+        }
+
+        productoSeleccionadoId = 0;
+        cantidadAgregar = 1;
+    }
+
+    private void QuitarProducto(FacturaDetalleDto item)
+    {
+        detalles.Remove(item);
+    }
+
+    private async Task GuardarFactura()
+    {
+        mostrarErrorCliente = clienteSeleccionadoId == 0;
+        if (mostrarErrorCliente) return;
+
+        if (!detalles.Any())
+        {
+            mensaje = "Debe agregar al menos un producto.";
+            exito = false;
+            return;
+        }
+
+        guardando = true;
+        mensaje = string.Empty;
+
+        var dto = new FacturaCreateDto
+            {
+                ClienteId = clienteSeleccionadoId,
+                Detalles = detalles
+            };
+
+        (bool exitoOp, string mensajeOp, int facturaId) = await FacturaService.CrearAsync(dto);
+
+        exito = exitoOp;
+        mensaje = mensajeOp;
+        guardando = false;
+
+        if (exitoOp)
+        {
+            await Task.Delay(1000);
+            Nav.NavigateTo($"/facturas/{facturaId}");
+        }
+    }
+}

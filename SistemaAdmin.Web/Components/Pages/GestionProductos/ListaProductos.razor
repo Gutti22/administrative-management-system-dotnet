@@ -1,0 +1,109 @@
+﻿@page "/productos"
+@namespace SistemaAdmin.Web.Components.Pages.GestionProductos
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject ProductoService ProductoService
+@rendermode InteractiveServer
+
+<PageTitle>Productos</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Productos</h3>
+    <a href="/productos/nuevo" class="btn btn-primary">
+        <span class="bi bi-plus-lg me-1"></span> Nuevo Producto
+    </a>
+</div>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (!productos.Any())
+{
+    <p class="text-muted">No hay productos registrados.</p>
+}
+else
+{
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Código</th>
+                <th>Precio</th>
+                <th>Stock</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var producto in productos)
+            {
+                <tr>
+                    <td>@producto.Id</td>
+                    <td>@producto.Nombre</td>
+                    <td>@producto.Codigo</td>
+                    <td>L. @producto.Precio.ToString("N2")</td>
+                    <td>
+                        <span class="badge @(producto.Stock < 5 ? "bg-warning text-dark" : "bg-info text-dark")">
+                            @producto.Stock
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge @(producto.Estado ? "bg-success" : "bg-secondary")">
+                            @(producto.Estado ? "Activo" : "Inactivo")
+                        </span>
+                    </td>
+                    <td>
+                        <a href="/productos/editar/@producto.Id" class="btn btn-outline-primary me-1">
+                            <span class="bi bi-pencil-fill me-1"></span> Editar
+                        </a>
+                        @if (producto.Estado)
+                        {
+                            <button class="btn btn-outline-danger"
+                                    @onclick="() => Desactivar(producto)">
+                                Desactivar
+                            </button>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert @(exito ? "alert-success" : "alert-danger") mt-3">
+        @mensaje
+    </div>
+}
+
+@code {
+    private List<Producto> productos = [];
+    private string mensaje = string.Empty;
+    private bool exito;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarProductos();
+    }
+
+    private async Task CargarProductos()
+    {
+        cargando = true;
+        productos = (await ProductoService.ObtenerTodosAsync()).ToList();
+        cargando = false;
+    }
+
+    private async Task Desactivar(Producto producto)
+    {
+        (bool exitoOp, string mensajeOp) = await ProductoService.DesactivarAsync(producto.Id);
+        exito = exitoOp;
+        mensaje = mensajeOp;
+
+        if (exitoOp)
+            producto.Estado = false;
+    }
+}

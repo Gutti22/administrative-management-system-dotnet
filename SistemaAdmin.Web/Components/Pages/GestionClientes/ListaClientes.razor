@@ -1,0 +1,128 @@
+﻿@page "/clientes"
+@namespace SistemaAdmin.Web.Components.Pages.GestionClientes
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject ClienteService ClienteService
+@rendermode InteractiveServer
+
+<PageTitle>Clientes</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Clientes</h3>
+    <a href="/clientes/nuevo" class="btn btn-primary">
+        <span class="bi bi-plus-lg me-1"></span> Nuevo Cliente
+    </a>
+</div>
+
+<div class="input-group mb-3" style="max-width: 400px;">
+    <input type="text"
+           class="form-control"
+           placeholder="Buscar por nombre, identidad o correo..."
+           value="@terminoBusqueda"
+           @oninput="OnBuscar" />
+    @if (!string.IsNullOrWhiteSpace(terminoBusqueda))
+    {
+        <button class="btn btn-outline-secondary" @onclick="LimpiarBusqueda">✕</button>
+    }
+</div>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (!clientes.Any())
+{
+    <p class="text-muted">No se encontraron clientes.</p>
+}
+else
+{
+    <table class="table table-hover table-bordered">
+        <thead class="table-dark">
+            <tr>
+                <th>#</th>
+                <th>Nombre</th>
+                <th>Identidad</th>
+                <th>Teléfono</th>
+                <th>Correo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var cliente in clientes)
+            {
+                <tr>
+                    <td>@cliente.Id</td>
+                    <td>@cliente.Nombre</td>
+                    <td>@cliente.Identidad</td>
+                    <td>@(cliente.Telefono ?? "—")</td>
+                    <td>@(cliente.Correo ?? "—")</td>
+                    <td>
+                        <span class="badge @(cliente.Estado ? "bg-success" : "bg-secondary")">
+                            @(cliente.Estado ? "Activo" : "Inactivo")
+                        </span>
+                    </td>
+                    <td>
+                        <a href="/clientes/editar/@cliente.Id" class="btn btn-outline-primary me-1">
+                            <span class="bi bi-pencil-fill me-1"></span>Editar
+                        </a>
+                        <button class="btn btn-sm @(cliente.Estado ? "btn-outline-danger" : "btn-outline-success")"
+                                @onclick="() => CambiarEstado(cliente)">
+                            @(cliente.Estado ? "Desactivar" : "Activar")
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@if (!string.IsNullOrEmpty(mensaje))
+{
+    <div class="alert @(exito ? "alert-success" : "alert-danger") mt-3">
+        @mensaje
+    </div>
+}
+
+@code {
+    private List<Clientes> clientes = [];
+    private string terminoBusqueda = string.Empty;
+    private string mensaje = string.Empty;
+    private bool exito;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarClientes();
+    }
+
+    private async Task CargarClientes()
+    {
+        cargando = true;
+        clientes = (await ClienteService.ObtenerTodosAsync()).ToList();
+        cargando = false;
+    }
+
+    private async Task OnBuscar(ChangeEventArgs e)
+    {
+        terminoBusqueda = e.Value?.ToString() ?? string.Empty;
+        cargando = true;
+        clientes = (await ClienteService.BuscarAsync(terminoBusqueda)).ToList();
+        cargando = false;
+    }
+
+    private async Task LimpiarBusqueda()
+    {
+        terminoBusqueda = string.Empty;
+        await CargarClientes();
+    }
+
+    private async Task CambiarEstado(Clientes cliente)
+    {
+        (bool exitoOp, string mensajeOp) = await ClienteService.CambiarEstadoAsync(cliente.Id, !cliente.Estado);
+        exito = exitoOp;
+        mensaje = mensajeOp;
+        if (exitoOp)
+            cliente.Estado = !cliente.Estado;
+    }
+}

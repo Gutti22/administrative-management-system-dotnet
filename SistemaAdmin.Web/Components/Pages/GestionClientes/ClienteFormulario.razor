@@ -1,0 +1,177 @@
+﻿@page "/clientes/nuevo"
+@page "/clientes/editar/{Id:int}"
+@namespace SistemaAdmin.Web.Components.Pages.GestionClientes
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject ClienteService ClienteService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>@(esEdicion ? "Editar Cliente" : "Nuevo Cliente")</PageTitle>
+
+<div class="d-flex align-items-center mb-3">
+    <a href="/clientes" class="btn btn-outline-secondary me-3">
+        <span class="bi bi-arrow-left"></span>
+    </a>
+    <h3 class="mb-0">@(esEdicion ? "Editar Cliente" : "Nuevo Cliente")</h3>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-body">
+        <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control @(errores.ContainsKey("Nombre") ? "is-invalid" : "")"
+                   @bind="cliente.Nombre"
+                   @oninput="e => ValidarNombre(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Nombre"))
+            {
+                <div class="invalid-feedback">@errores["Nombre"]</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Identidad / RTN <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control @(errores.ContainsKey("Identidad") ? "is-invalid" : "")"
+                   @bind="cliente.Identidad"
+                   @oninput="e => ValidarIdentidad(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Identidad"))
+            {
+                <div class="invalid-feedback">@errores["Identidad"]</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Teléfono</label>
+            <input type="text"
+                   class="form-control @(errores.ContainsKey("Telefono") ? "is-invalid" : "")"
+                   @bind="cliente.Telefono"
+                   @oninput="e => ValidarTelefono(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Telefono"))
+            {
+                <div class="invalid-feedback">@errores["Telefono"]</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Correo</label>
+            <input type="email"
+                   class="form-control @(errores.ContainsKey("Correo") ? "is-invalid" : "")"
+                   @bind="cliente.Correo"
+                   @oninput="e => ValidarCorreo(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Correo"))
+            {
+                <div class="invalid-feedback">@errores["Correo"]</div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <div class="alert @(exito ? "alert-success" : "alert-danger")">
+                @mensaje
+            </div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="Guardar" disabled="@(guardando || errores.Any())">
+                @if (guardando)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Guardar
+            </button>
+            <a href="/clientes" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Clientes cliente = new();
+    private Dictionary<string, string> errores = new();
+    private string mensaje = string.Empty;
+    private bool exito;
+    private bool guardando;
+    private bool esEdicion => Id > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (esEdicion)
+        {
+            var encontrado = await ClienteService.ObtenerPorIdAsync(Id);
+            if (encontrado is not null)
+                cliente = encontrado;
+            else
+                Nav.NavigateTo("/clientes");
+        }
+    }
+
+    private void ValidarNombre(string? valor)
+    {
+        cliente.Nombre = valor ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(valor))
+            errores["Nombre"] = "El nombre es obligatorio.";
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(valor, @"^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$"))
+            errores["Nombre"] = "El nombre solo puede contener letras.";
+        else
+            errores.Remove("Nombre");
+    }
+
+    private void ValidarIdentidad(string? valor)
+    {
+        cliente.Identidad = valor ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(valor))
+            errores["Identidad"] = "La identidad o RTN es obligatoria.";
+        else if (!System.Text.RegularExpressions.Regex.IsMatch(valor, @"^\d+$"))
+            errores["Identidad"] = "Solo se permiten números.";
+        else
+            errores.Remove("Identidad");
+    }
+
+    private void ValidarTelefono(string? valor)
+    {
+        cliente.Telefono = string.IsNullOrWhiteSpace(valor) ? null : valor;
+        if (!string.IsNullOrWhiteSpace(valor) && !System.Text.RegularExpressions.Regex.IsMatch(valor, @"^\d+$"))
+            errores["Telefono"] = "Solo se permiten números.";
+        else
+            errores.Remove("Telefono");
+    }
+
+    private void ValidarCorreo(string? valor)
+    {
+        cliente.Correo = string.IsNullOrWhiteSpace(valor) ? null : valor;
+        if (!string.IsNullOrWhiteSpace(valor) && !System.Text.RegularExpressions.Regex.IsMatch(valor, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
+            errores["Correo"] = "Formato de correo inválido.";
+        else
+            errores.Remove("Correo");
+    }
+
+    private async Task Guardar()
+    {
+        ValidarNombre(cliente.Nombre);
+        ValidarIdentidad(cliente.Identidad);
+        ValidarTelefono(cliente.Telefono);
+        ValidarCorreo(cliente.Correo);
+
+        if (errores.Any()) return;
+
+        guardando = true;
+        mensaje = string.Empty;
+
+        (bool exitoOp, string mensajeOp) = esEdicion
+            ? await ClienteService.ActualizarAsync(cliente)
+            : await ClienteService.CrearAsync(cliente);
+
+        exito = exitoOp;
+        mensaje = mensajeOp;
+        guardando = false;
+
+        if (exitoOp)
+        {
+            await Task.Delay(1000);
+            Nav.NavigateTo("/clientes");
+        }
+    }
+}

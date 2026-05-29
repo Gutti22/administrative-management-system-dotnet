@@ -1,0 +1,194 @@
+﻿@page "/productos/nuevo"
+@page "/productos/editar/{Id:int}"
+@namespace SistemaAdmin.Web.Components.Pages.GestionProductos
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject ProductoService ProductoService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>@(esEdicion ? "Editar Producto" : "Nuevo Producto")</PageTitle>
+
+<div class="d-flex align-items-center mb-3">
+    <a href="/productos" class="btn btn-outline-secondary me-3">
+        <span class="bi bi-arrow-left"></span>
+    </a>
+    <h3 class="mb-0">@(esEdicion ? "Editar Producto" : "Nuevo Producto")</h3>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-body">
+
+        <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control @(errores.ContainsKey("Nombre") ? "is-invalid" : "")"
+                   @bind="producto.Nombre"
+                   @oninput="e => ValidarNombre(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Nombre"))
+            {
+                <div class="invalid-feedback">@errores["Nombre"]</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Código <span class="text-danger">*</span></label>
+            <input type="text"
+                   class="form-control @(errores.ContainsKey("Codigo") ? "is-invalid" : "")"
+                   @bind="producto.Codigo"
+                   @oninput="e => ValidarCodigo(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Codigo"))
+            {
+                <div class="invalid-feedback">@errores["Codigo"]</div>
+            }
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Precio <span class="text-danger">*</span></label>
+            <div class="input-group">
+                <span class="input-group-text">L.</span>
+                <input type="number"
+                       class="form-control @(errores.ContainsKey("Precio") ? "is-invalid" : "")"
+                       min="0.01" step="0.01"
+                       @bind="producto.Precio"
+                       @oninput="e => ValidarPrecio(e.Value?.ToString())" />
+                @if (errores.ContainsKey("Precio"))
+                {
+                    <div class="invalid-feedback">@errores["Precio"]</div>
+                }
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Stock <span class="text-danger">*</span></label>
+            <input type="number"
+                   class="form-control @(errores.ContainsKey("Stock") ? "is-invalid" : "")"
+                   min="0"
+                   @bind="producto.Stock"
+                   @oninput="e => ValidarStock(e.Value?.ToString())" />
+            @if (errores.ContainsKey("Stock"))
+            {
+                <div class="invalid-feedback">@errores["Stock"]</div>
+            }
+        </div>
+
+        @if (!string.IsNullOrEmpty(mensaje))
+        {
+            <div class="alert @(exito ? "alert-success" : "alert-danger")">
+                @mensaje
+            </div>
+        }
+
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary" @onclick="Guardar" disabled="@(guardando || errores.Any())">
+                @if (guardando)
+                {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                Guardar
+            </button>
+            <a href="/productos" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Producto producto = new();
+    private Dictionary<string, string> errores = new();
+    private string mensaje = string.Empty;
+    private bool exito;
+    private bool guardando;
+    private bool esEdicion => Id > 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (esEdicion)
+        {
+            var encontrado = await ProductoService.ObtenerPorIdAsync(Id);
+            if (encontrado is not null)
+                producto = encontrado;
+            else
+                Nav.NavigateTo("/productos");
+        }
+    }
+
+    private void ValidarNombre(string? valor)
+    {
+        producto.Nombre = valor ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(valor))
+            errores["Nombre"] = "El nombre es obligatorio.";
+        else
+            errores.Remove("Nombre");
+    }
+
+    private void ValidarCodigo(string? valor)
+    {
+        producto.Codigo = valor ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(valor))
+            errores["Codigo"] = "El código es obligatorio.";
+        else
+            errores.Remove("Codigo");
+    }
+
+    private void ValidarPrecio(string? valor)
+    {
+        if (decimal.TryParse(valor, out var precio))
+        {
+            producto.Precio = precio;
+            if (precio <= 0)
+                errores["Precio"] = "El precio debe ser mayor a cero.";
+            else
+                errores.Remove("Precio");
+        }
+        else
+        {
+            errores["Precio"] = "Ingrese un precio válido.";
+        }
+    }
+
+    private void ValidarStock(string? valor)
+    {
+        if (int.TryParse(valor, out var stock))
+        {
+            producto.Stock = stock;
+            if (stock < 0)
+                errores["Stock"] = "El stock no puede ser negativo.";
+            else
+                errores.Remove("Stock");
+        }
+        else
+        {
+            errores["Stock"] = "Ingrese un valor entero válido.";
+        }
+    }
+
+    private async Task Guardar()
+    {
+        ValidarNombre(producto.Nombre);
+        ValidarCodigo(producto.Codigo);
+        ValidarPrecio(producto.Precio.ToString());
+        ValidarStock(producto.Stock.ToString());
+
+        if (errores.Any()) return;
+
+        guardando = true;
+        mensaje = string.Empty;
+
+        (bool exitoOp, string mensajeOp) = esEdicion
+            ? await ProductoService.ActualizarAsync(producto)
+            : await ProductoService.CrearAsync(producto);
+
+        exito = exitoOp;
+        mensaje = mensajeOp;
+        guardando = false;
+
+        if (exitoOp)
+        {
+            await Task.Delay(1000);
+            Nav.NavigateTo("/productos");
+        }
+    }
+}

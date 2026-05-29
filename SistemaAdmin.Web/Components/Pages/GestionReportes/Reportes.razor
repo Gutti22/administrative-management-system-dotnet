@@ -1,0 +1,196 @@
+﻿@page "/reportes"
+@namespace SistemaAdmin.Web.Components.Pages.GestionReportes
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.DTOs
+@inject ReporteService ReporteService
+@rendermode InteractiveServer
+
+<PageTitle>Reportes</PageTitle>
+
+<h3 class="mb-4">Reportes</h3>
+
+<ul class="nav nav-tabs mb-4">
+    <li class="nav-item">
+        <button class="nav-link @(tabActiva == 1 ? "active" : "")" @onclick="() => CambiarTab(1)">
+            <span class="bi bi-trophy-fill me-1"></span> Top Productos
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(tabActiva == 2 ? "active" : "")" @onclick="() => CambiarTab(2)">
+            <span class="bi bi-people-fill me-1"></span> Clientes Top
+        </button>
+    </li>
+    <li class="nav-item">
+        <button class="nav-link @(tabActiva == 3 ? "active" : "")" @onclick="() => CambiarTab(3)">
+            <span class="bi bi-exclamation-triangle-fill me-1"></span> Stock Bajo
+        </button>
+    </li>
+</ul>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else
+{
+    @* ── Reporte 1: Top productos ── *@
+    @if (tabActiva == 1)
+    {
+        <h5>Top 5 Productos Más Vendidos</h5>
+        @if (!topProductos.Any())
+        {
+            <p class="text-muted">Sin datos disponibles.</p>
+        }
+        else
+        {
+            <table class="table table-hover table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Producto</th>
+                        <th>Código</th>
+                        <th class="text-center">Unidades Vendidas</th>
+                        <th class="text-end">Total Facturado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int pos = 1;
+                    }
+                    @foreach (var item in topProductos)
+                    {
+                        <tr>
+                            <td><span class="badge bg-warning text-dark">@pos</span></td>
+                            <td>@item.Nombre</td>
+                            <td>@item.Codigo</td>
+                            <td class="text-center">@item.TotalUnidadesVendidas</td>
+                            <td class="text-end">L. @item.TotalFacturado.ToString("N2")</td>
+                        </tr>
+                        pos++;
+                    }
+                </tbody>
+            </table>
+        }
+    }
+
+    @* ── Reporte 2: Clientes top ── *@
+    @if (tabActiva == 2)
+    {
+        <h5>Clientes con Mayor Facturación</h5>
+        @if (!clientesTop.Any())
+        {
+            <p class="text-muted">Sin datos disponibles.</p>
+        }
+        else
+        {
+            <table class="table table-hover table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>#</th>
+                        <th>Cliente</th>
+                        <th>Identidad</th>
+                        <th>Correo</th>
+                        <th class="text-center">Facturas</th>
+                        <th class="text-end">Monto Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @{
+                        int rankCliente = 1;
+                    }
+                    @foreach (var item in clientesTop)
+                    {
+                        <tr>
+                            <td><span class="badge bg-primary">@rankCliente</span></td>
+                            <td>@item.Nombre</td>
+                            <td>@item.Identidad</td>
+                            <td>@(item.Correo ?? "—")</td>
+                            <td class="text-center">@item.TotalFacturas</td>
+                            <td class="text-end">L. @item.MontoTotal.ToString("N2")</td>
+                        </tr>
+                        rankCliente++;
+                    }
+                </tbody>
+            </table>
+        }
+    }
+
+    @* ── Reporte 3: Stock bajo ── *@
+    @if (tabActiva == 3)
+    {
+        <h5>Productos con Stock Bajo <span class="badge bg-danger">menos de 5 unidades</span></h5>
+        @if (!stockBajo.Any())
+        {
+            <p class="text-success">✓ Todos los productos tienen stock suficiente.</p>
+        }
+        else
+        {
+            <table class="table table-hover table-bordered">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Código</th>
+                        <th class="text-center">Stock</th>
+                        <th class="text-end">Precio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in stockBajo)
+                    {
+                        <tr class="@(item.Stock == 0 ? "table-danger" : "table-warning")">
+                            <td>@item.Nombre</td>
+                            <td>@item.Codigo</td>
+                            <td class="text-center">
+                                <span class="badge @(item.Stock == 0 ? "bg-danger" : "bg-warning text-dark")">
+                                    @(item.Stock == 0 ? "Sin stock" : item.Stock.ToString())
+                                </span>
+                            </td>
+                            <td class="text-end">L. @item.Precio.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    }
+}
+
+@code {
+    private List<ProductoMasVendidoDto> topProductos = [];
+    private List<ClienteTopDto> clientesTop = [];
+    private List<ProductoStockBajoDto> stockBajo = [];
+
+    private int tabActiva = 1;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarTabActiva();
+    }
+
+    private async Task CambiarTab(int tab)
+    {
+        tabActiva = tab;
+        cargando = true;
+        await CargarTabActiva();
+    }
+
+    private async Task CargarTabActiva()
+    {
+        cargando = true;
+
+        switch (tabActiva)
+        {
+            case 1:
+                topProductos = (await ReporteService.TopProductosAsync()).ToList();
+                break;
+            case 2:
+                clientesTop = (await ReporteService.ClientesTopAsync()).ToList();
+                break;
+            case 3:
+                stockBajo = (await ReporteService.StockBajoAsync()).ToList();
+                break;
+        }
+
+        cargando = false;
+    }
+}

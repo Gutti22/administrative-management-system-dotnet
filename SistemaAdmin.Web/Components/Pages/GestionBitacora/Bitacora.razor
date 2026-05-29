@@ -1,0 +1,96 @@
+﻿@page "/bitacora"
+@namespace SistemaAdmin.Web.Components.Pages.GestionBitacora
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject BitacoraService BitacoraService
+@rendermode InteractiveServer
+
+<PageTitle>Bitácora</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h3>Bitácora de Errores</h3>
+    <button class="btn btn-outline-secondary" @onclick="Recargar">
+        <span class="bi bi-arrow-clockwise me-1"></span> Recargar
+    </button>
+</div>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (!registros.Any())
+{
+    <p class="text-success">✓ No hay errores registrados.</p>
+}
+else
+{
+    <table class="table table-hover table-bordered table-sm">
+        <thead class="table-dark">
+            <tr>
+                <th>Fecha</th>
+                <th>Nivel</th>
+                <th>Mensaje</th>
+                <th>Detalle</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var registro in registros)
+            {
+                <tr>
+                    <td class="text-nowrap">@registro.Fecha.ToString("dd/MM/yyyy HH:mm:ss")</td>
+                    <td>
+                        <span class="badge @NivelColor(registro.Nivel)">@registro.Nivel</span>
+                    </td>
+                    <td>@registro.Mensaje</td>
+                    <td>
+                        @if (!string.IsNullOrEmpty(registro.StackTrace))
+                        {
+                            <button class="btn btn-sm btn-outline-secondary"
+                                    @onclick="() => ToggleStack(registro.Id)">
+                                @(stackVisible == registro.Id ? "Ocultar" : "Ver")
+                            </button>
+                            @if (stackVisible == registro.Id)
+                            {
+                                <pre class="mt-2 p-2 bg-light border rounded small" style="max-height:200px;overflow:auto;">@registro.StackTrace</pre>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<BitacoraError> registros = [];
+    private int stackVisible = -1;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Recargar();
+    }
+
+    private async Task Recargar()
+    {
+        cargando = true;
+        registros = (await BitacoraService.ObtenerRecientesAsync()).ToList();
+        cargando = false;
+    }
+
+    private void ToggleStack(int id)
+    {
+        stackVisible = stackVisible == id ? -1 : id;
+    }
+
+    private static string NivelColor(string nivel) => nivel switch
+    {
+        "ERROR" => "bg-danger",
+        "EXCEPTION" => "bg-dark",
+        _ => "bg-info text-dark"
+    };
+}

@@ -1,0 +1,86 @@
+﻿@page "/facturas/{Id:int}"
+@namespace SistemaAdmin.Web.Components.Pages.GestionFacturas
+@using SistemaAdmin.Application.Services
+@using SistemaAdmin.core.Entities
+@inject FacturaService FacturaService
+@inject NavigationManager Nav
+@rendermode InteractiveServer
+
+<PageTitle>Detalle de Factura</PageTitle>
+
+<div class="d-flex align-items-center mb-3">
+    <a href="/facturas" class="btn btn-outline-secondary me-3">
+        <span class="bi bi-arrow-left"></span>
+    </a>
+    <h3 class="mb-0">Detalle de Factura</h3>
+</div>
+
+@if (cargando)
+{
+    <p>Cargando...</p>
+}
+else if (factura is null)
+{
+    <p class="text-danger">Factura no encontrada.</p>
+}
+else
+{
+    <div class="card mb-4" style="max-width: 750px;">
+        <div class="card-header d-flex justify-content-between">
+            <strong>@factura.NameFactura</strong>
+            <span>@factura.Fecha.ToString("dd/MM/yyyy HH:mm")</span>
+        </div>
+        <div class="card-body">
+            <p><strong>Cliente:</strong> @factura.ClienteName</p>
+
+            <table class="table table-bordered mt-3">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th class="text-center">Cantidad</th>
+                        <th class="text-end">Precio Unit.</th>
+                        <th class="text-end">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var detalle in factura.Detalles)
+                    {
+                        <tr>
+                            <td>@detalle.ProductoName</td>
+                            <td class="text-center">@detalle.Cantidad</td>
+                            <td class="text-end">L. @detalle.PrecioUnitario.ToString("N2")</td>
+                            <td class="text-end">L. @detalle.SubTotal.ToString("N2")</td>
+                        </tr>
+                    }
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-end">Subtotal</td>
+                        <td class="text-end">L. @factura.Subtotal.ToString("N2")</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="text-end">ISV (15%)</td>
+                        <td class="text-end">L. @factura.ISV.ToString("N2")</td>
+                    </tr>
+                    <tr class="table-dark">
+                        <td colspan="3" class="text-end"><strong>Total</strong></td>
+                        <td class="text-end"><strong>L. @factura.Total.ToString("N2")</strong></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Factura? factura;
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        factura = await FacturaService.ObtenerPorIdAsync(Id);
+        cargando = false;
+    }
+}
