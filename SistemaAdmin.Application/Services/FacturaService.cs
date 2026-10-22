@@ -1,15 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SistemaAdmin.Application.Services;
-
 using SistemaAdmin.Application.DTOs;
 using SistemaAdmin.core.Entities;
 using SistemaAdmin.core.Interfaces;
 
+namespace SistemaAdmin.Application.Services;
 
 public class FacturaService
 {
@@ -63,48 +56,58 @@ public class FacturaService
         if (dto.Detalles.Count == 0)
             return (false, "La factura debe tener al menos un producto.", 0);
 
+        if (dto.Detalles.Any(d => d.ProductoId <= 0 || d.Cantidad <= 0))
+            return (false, "Todos los productos deben tener una cantidad válida mayor a cero.", 0);
+
         try
         {
-            foreach (var item in dto.Detalles)
+            var detallesNormalizados = new List<FacturaDetalle>();
+
+            foreach (var grupo in dto.Detalles.GroupBy(d => d.ProductoId))
             {
-                var producto = await _productoRepo.ObtenerPorIdAsync(item.ProductoId);
+                var cantidadTotal = grupo.Sum(d => d.Cantidad);
+                var producto = await _productoRepo.ObtenerPorIdAsync(grupo.Key);
 
-                if (producto is null)
-                    return (false, $"El producto con Id {item.ProductoId} no existe.", 0);
+                if (producto is null || !producto.Estado)
+                    return (false, $"El producto con Id {grupo.Key} no está disponible.", 0);
 
-                if (producto.Stock < item.Cantidad)
-                    return (false, $"Stock insuficiente para '{producto.Nombre}'. Disponible: {producto.Stock}.", 0);
+                if (producto.Stock < cantidadTotal)
+                    return (false,
+                        $"Stock insuficiente para '{producto.Nombre}'. Disponible: {producto.Stock}.",
+                        0);
+
+                detallesNormalizados.Add(new FacturaDetalle
+                {
+                    ProductoId = producto.Id,
+                    ProductoName = producto.Nombre,
+                    Cantidad = cantidadTotal,
+                    PrecioUnitario = producto.Precio
+                });
             }
 
-            var factura = ConstruirFactura(dto);
-
+            var factura = ConstruirFactura(dto.ClienteId, detallesNormalizados);
             var id = await _facturaRepo.CrearAsync(factura);
+
             return (true, "Factura creada correctamente.", id);
         }
         catch (Exception ex)
         {
             await _bitacora.RegistrarAsync("EXCEPTION", "Error al crear factura", ex.ToString());
-            return (false, "Ocurrió un error al guardar la factura.", 0);
+            return (false,
+                "No fue posible emitir la factura. Verifique el stock disponible e intente nuevamente.",
+                0);
         }
     }
 
-    private static Factura ConstruirFactura(FacturaCreateDto dto)
+    private static Factura ConstruirFactura(int clienteId, List<FacturaDetalle> detalles)
     {
-        var detalles = dto.Detalles.Select(d => new FacturaDetalle
-        {
-            ProductoId = d.ProductoId,
-            ProductoName = d.ProductoNombre,
-            Cantidad = d.Cantidad,
-            PrecioUnitario = d.PrecioUnitario
-        }).ToList();
-
         var subtotal = detalles.Sum(d => d.SubTotal);
         var isv = Math.Round(subtotal * TasaISV, 2);
         var total = subtotal + isv;
 
         return new Factura
         {
-            ClienteId = dto.ClienteId,
+            ClienteId = clienteId,
             Subtotal = subtotal,
             ISV = isv,
             Total = total,
