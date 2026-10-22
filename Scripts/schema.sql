@@ -15,7 +15,7 @@ USE SistemaAdmin;
 CREATE TABLE Clientes (
     Id            INT           NOT NULL AUTO_INCREMENT,
     Nombre        VARCHAR(150)  NOT NULL,
-    Identidad  VARCHAR(20)   NOT NULL,
+    Identidad      VARCHAR(20)   NOT NULL,
     Telefono      VARCHAR(20)       NULL,
     Correo        VARCHAR(100)      NULL,
     FechaRegistro DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -25,7 +25,7 @@ CREATE TABLE Clientes (
 );
 
 CREATE INDEX IX_Clientes_Nombre       ON Clientes (Nombre);
-CREATE INDEX IX_Clientes_IdentidadRTN ON Clientes (IdentidadRTN);
+CREATE INDEX IX_Clientes_Identidad ON Clientes (Identidad);
 CREATE INDEX IX_Clientes_Correo       ON Clientes (Correo);
 
 -- ------------------------------------------------------------
