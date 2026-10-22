@@ -86,10 +86,27 @@ public class FacturaRepository : IFacturaRepository
 
     private async Task<string> GenerarNumeroFacturaAsync(MySqlConnection conn, MySqlTransaction tx)
     {
-        const string sql = "SELECT COALESCE(MAX(Id), 0) + 1 FROM Facturas";
+        const string updateSql = """
+            UPDATE Correlativos
+            SET UltimoValor = UltimoValor + 1
+            WHERE Nombre = 'Factura'
+            """;
 
-        await using var cmd = new MySqlCommand(sql, conn, tx);
-        var siguiente = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+        await using (var updateCmd = new MySqlCommand(updateSql, conn, tx))
+        {
+            var filasAfectadas = await updateCmd.ExecuteNonQueryAsync();
+            if (filasAfectadas != 1)
+                throw new InvalidOperationException("No se pudo generar el correlativo de la factura.");
+        }
+
+        const string selectSql = """
+            SELECT UltimoValor
+            FROM Correlativos
+            WHERE Nombre = 'Factura'
+            """;
+
+        await using var selectCmd = new MySqlCommand(selectSql, conn, tx);
+        var siguiente = Convert.ToInt32(await selectCmd.ExecuteScalarAsync());
         return $"FACT-{siguiente:D6}";
     }
 
@@ -130,13 +147,22 @@ public class FacturaRepository : IFacturaRepository
 
     private async Task DescontarStockAsync(MySqlConnection conn, MySqlTransaction tx, int productoId, int cantidad)
     {
-        const string sql = "UPDATE Productos SET Stock = Stock - @Cantidad WHERE Id = @ProductoId";
+        const string sql = """
+            UPDATE Productos
+            SET Stock = Stock - @Cantidad
+            WHERE Id = @ProductoId
+              AND Estado = 1
+              AND Stock >= @Cantidad
+            """;
 
         await using var cmd = new MySqlCommand(sql, conn, tx);
         cmd.Parameters.AddWithValue("@ProductoId", productoId);
         cmd.Parameters.AddWithValue("@Cantidad", cantidad);
 
-        await cmd.ExecuteNonQueryAsync();
+        var filasAfectadas = await cmd.ExecuteNonQueryAsync();
+        if (filasAfectadas != 1)
+            throw new InvalidOperationException(
+                $"No hay stock suficiente para el producto con Id {productoId}.");
     }
 
     private async Task<Factura?> ObtenerCabeceraAsync(MySqlConnection conn, int id)
