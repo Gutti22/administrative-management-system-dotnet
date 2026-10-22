@@ -1,66 +1,133 @@
-# Sistema Administrativo — Prueba Técnica
+# Administrative Management System
 
-Sistema web de administración desarrollado con **Blazor Server**, **C# .NET 8** y **MySQL**, 
-siguiendo una arquitectura limpia por capas.
+A web-based administrative system built with **C#**, **.NET 8**, **Blazor Server**, **ADO.NET**, and **MySQL**.
 
-## Requisitos previos
+The project manages customers, products, invoicing, reporting, and application error logs using a layered architecture with explicit separation between domain contracts, application services, infrastructure, and UI.
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
-- MySQL Server 8.0+
-- Visual Studio 2022
+## Highlights
 
-## Configuración inicial
+- Layered architecture inspired by Clean Architecture principles
+- Customer and product management
+- Transactional invoice creation
+- Server-side validation of product prices and quantities
+- Concurrency-safe stock updates
+- Transactional invoice numbering
+- SQL reporting for sales, customers, and low-stock products
+- Application error logging
+- Asynchronous database access with ADO.NET
 
-### 1. Base de datos
+## Architecture
 
-Abre MySQL Workbench y ejecuta el script ubicado en:
-`Scripts/schema.sql`
-
-Esto creará la base de datos `SistemaAdmin` con todas las tablas necesarias.
-
-### 2. Connection String
-
-Abre `SistemaAdmin.Web/appsettings.json` y actualiza la contraseña:
-
-```json
-{
-  "ConnectionStrings": {
-    "MySql": "Server=localhost;Port=3306;Database=SistemaAdmin;Uid=root;Pwd=TU_PASSWORD;"
-  }
-}
+```mermaid
+flowchart LR
+    Web["Web / Blazor Server"] --> Application["Application"]
+    Web --> Infrastructure["Infrastructure"]
+    Application --> Core["Core"]
+    Infrastructure --> Core
 ```
-
-### 3. Ejecutar el proyecto
-
-Abre `Admin.sln` en Visual Studio 2022, establece `SistemaAdmin.Web` 
-como proyecto de inicio y presiona **F5**.
-
-La aplicación abrirá en `https://localhost:{puerto}`
-
-## Estructura del proyecto
 
 ```text
 SistemaAdmin/
-├── SistemaAdmin.core/             # Entidades e interfaces
-├── SistemasAdmin.Infrastructure/  # ADO.NET y repositorios MySQL
-├── SistemaAdmin.Application/      # Servicios de negocio y DTOs
-├── SistemaAdmin.Web/              # Blazor Server (UI)
-└── Scripts/                       # Scripts de base de datos
+├── SistemaAdmin.core/             # Entities and repository contracts
+├── SistemaAdmin.Application/      # Business services and DTOs
+├── SistemasAdmin.Infrastructure/  # ADO.NET and MySQL repositories
+├── SistemaAdmin.Web/              # Blazor Server UI
+└── Scripts/                       # Database scripts
 ```
 
-## Módulos disponibles
+## Modules
 
-| Módulo | Ruta | Descripción |
+| Module | Route | Description |
 |---|---|---|
-| Clientes | `/clientes` | CRUD completo con búsqueda y activar/desactivar |
-| Productos | `/productos` | CRUD completo con control de stock |
-| Facturación | `/facturas` | Emisión de facturas con ISV 15% automático |
-| Reportes | `/reportes` | 3 reportes SQL en tiempo real |
-| Bitácora | `/bitacora` | Registro de errores del sistema |
+| Customers | `/clientes` | Create, search, edit, activate, and deactivate customers |
+| Products | `/productos` | Product CRUD and stock management |
+| Invoices | `/facturas` | Invoice creation with automatic 15% ISV calculation |
+| Reports | `/reportes` | SQL-based sales and inventory reports |
+| Error Log | `/bitacora` | Application error history |
 
-## Decisiones técnicas destacadas
+## Tech Stack
 
-- **ADO.NET puro** sobre ORM para máximo control sobre las queries
-- **Transacciones** en emisión de facturas para garantizar integridad
-- **Arquitectura por capas** con dependencias unidireccionales
-- **ISV calculado y persistido** para auditoría histórica correcta
+- **Backend:** C# · .NET 8 · ADO.NET
+- **UI:** Blazor Server
+- **Database:** MySQL 8
+- **Data access:** MySqlConnector
+- **Architecture:** Core · Application · Infrastructure · Web
+- **Development:** Visual Studio 2022 · Git
+
+## Data Integrity
+
+Invoice creation is executed inside a database transaction.
+
+The workflow:
+
+1. Generates the next invoice number using a transactional counter.
+2. Inserts the invoice header.
+3. Inserts every invoice line.
+4. Updates product stock only when sufficient inventory is still available.
+5. Commits all changes together.
+
+If any step fails, the complete operation is rolled back.
+
+Product names and prices are reloaded from the database before the invoice is created, so billing does not trust price values received from the UI.
+
+## Getting Started
+
+### Requirements
+
+- .NET 8 SDK
+- MySQL Server 8.0+
+- Visual Studio 2022 or another .NET-compatible IDE
+
+### 1. Create the database
+
+Run:
+
+```text
+Scripts/schema.sql
+```
+
+The script creates the `SistemaAdmin` database and the required tables and indexes.
+
+### 2. Configure the local connection string
+
+Copy:
+
+```text
+SistemaAdmin.Web/appsettings.Local.example.json
+```
+
+to:
+
+```text
+SistemaAdmin.Web/appsettings.Local.json
+```
+
+Then replace `YOUR_PASSWORD` with your local MySQL password.
+
+The local file is ignored by Git so credentials are not committed to the repository.
+
+You can also provide the connection string through the `ConnectionStrings__MySql` environment variable.
+
+### 3. Run the application
+
+From the repository root:
+
+```bash
+dotnet restore
+dotnet run --project SistemaAdmin.Web
+```
+
+Alternatively, open `Admin.sln` in Visual Studio 2022 and set `SistemaAdmin.Web` as the startup project.
+
+## Technical Documentation
+
+More details about architecture and design decisions are available in [DOCUMENTACION_TECNICA.md](DOCUMENTACION_TECNICA.md).
+
+## Roadmap
+
+- Automated unit and integration tests
+- Authentication and role-based authorization
+- Pagination and advanced filters
+- Export reports to PDF or Excel
+- Docker-based local environment
+- Additional API endpoints for external integrations
