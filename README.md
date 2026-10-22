@@ -1,6 +1,6 @@
-# Sistema Administrativo — Prueba Técnica
+# Sistema Administrativo â€” Prueba TÃ©cnica
 
-Sistema web de administración desarrollado con **Blazor Server**, **C# .NET 8** y **MySQL**, 
+Sistema web de administraciÃ³n desarrollado con **Blazor Server**, **C# .NET 8** y **MySQL**, 
 siguiendo una arquitectura limpia por capas.
 
 ## Requisitos previos
@@ -9,18 +9,18 @@ siguiendo una arquitectura limpia por capas.
 - MySQL Server 8.0+
 - Visual Studio 2022
 
-## Configuración inicial
+## ConfiguraciÃ³n inicial
 
 ### 1. Base de datos
 
 Abre MySQL Workbench y ejecuta el script ubicado en:
-/scripts/schema.sql
+`Scripts/schema.sql`
 
-Esto creará la base de datos `SistemaAdmin` con todas las tablas necesarias.
+Esto crearÃ¡ la base de datos `SistemaAdmin` con todas las tablas necesarias.
 
 ### 2. Connection String
 
-Abre `SistemaAdmin.Web/appsettings.json` y actualiza la contraseña:
+Abre `SistemaAdmin.Web/appsettings.json` y actualiza la contraseÃ±a:
 
 ```json
 {
@@ -32,32 +32,35 @@ Abre `SistemaAdmin.Web/appsettings.json` y actualiza la contraseña:
 
 ### 3. Ejecutar el proyecto
 
-Abre `SistemaAdmin.sln` en Visual Studio 2022, establece `SistemaAdmin.Web` 
+Abre `Admin.sln` en Visual Studio 2022, establece `SistemaAdmin.Web` 
 como proyecto de inicio y presiona **F5**.
 
-La aplicación abrirá en `https://localhost:{puerto}`
+La aplicaciÃ³n abrirÃ¡ en `https://localhost:{puerto}`
 
 ## Estructura del proyecto
 
+```text
 SistemaAdmin/
-??? SistemaAdmin.Core/           # Entidades e interfaces (sin dependencias)
-??? SistemaAdmin.Infrastructure/ # ADO.NET, repositorios MySQL
-??? SistemaAdmin.Application/    # Servicios de negocio, DTOs
-??? SistemaAdmin.Web/            # Blazor Server (UI)
+â”œâ”€â”€ SistemaAdmin.core/             # Entidades e interfaces
+â”œâ”€â”€ SistemasAdmin.Infrastructure/  # ADO.NET y repositorios MySQL
+â”œâ”€â”€ SistemaAdmin.Application/      # Servicios de negocio y DTOs
+â”œâ”€â”€ SistemaAdmin.Web/              # Blazor Server (UI)
+â””â”€â”€ Scripts/                       # Scripts de base de datos
+```
 
-## Módulos disponibles
+## MÃ³dulos disponibles
 
-| Módulo | Ruta | Descripción |
+| MÃ³dulo | Ruta | DescripciÃ³n |
 |---|---|---|
-| Clientes | `/clientes` | CRUD completo con búsqueda y activar/desactivar |
+| Clientes | `/clientes` | CRUD completo con bÃºsqueda y activar/desactivar |
 | Productos | `/productos` | CRUD completo con control de stock |
-| Facturación | `/facturas` | Emisión de facturas con ISV 15% automático |
+| FacturaciÃ³n | `/facturas` | EmisiÃ³n de facturas con ISV 15% automÃ¡tico |
 | Reportes | `/reportes` | 3 reportes SQL en tiempo real |
-| Bitácora | `/bitacora` | Registro de errores del sistema |
+| BitÃ¡cora | `/bitacora` | Registro de errores del sistema |
 
-## Decisiones técnicas destacadas
+## Decisiones tÃ©cnicas destacadas
 
-- **ADO.NET puro** sobre ORM para máximo control sobre las queries
-- **Transacciones** en emisión de facturas para garantizar integridad
+- **ADO.NET puro** sobre ORM para mÃ¡ximo control sobre las queries
+- **Transacciones** en emisiÃ³n de facturas para garantizar integridad
 - **Arquitectura por capas** con dependencias unidireccionales
-- **ISV calculado y persistido** para auditoría histórica correcta
+- **ISV calculado y persistido** para auditorÃ­a histÃ³rica correcta
