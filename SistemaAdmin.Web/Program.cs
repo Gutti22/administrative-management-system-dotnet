@@ -8,6 +8,11 @@ using SistemasAdmin.Infrastructure.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Configuration.AddJsonFile(
+    "appsettings.Local.json",
+    optional: true,
+    reloadOnChange: true);
+
 //  Blazor 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -25,7 +30,7 @@ builder.Services.AddScoped<IFacturaRepository, FacturaRepository>();
 builder.Services.AddScoped<IReporteRepository, ReporteRepository>();
 builder.Services.AddScoped<IBitacoraRepository, BitacoraRepository>();
 
-//  Servicios de aplicación 
+//  Servicios de aplicaciÃ³n 
 builder.Services.AddScoped<ClienteService>();
 builder.Services.AddScoped<ProductoService>();
 builder.Services.AddScoped<FacturaService>();
