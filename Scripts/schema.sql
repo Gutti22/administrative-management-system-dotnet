@@ -67,6 +67,20 @@ CREATE INDEX IX_Facturas_ClienteId ON Facturas (ClienteId);
 CREATE INDEX IX_Facturas_Fecha     ON Facturas (Fecha);
 
 -- ------------------------------------------------------------
+--  Correlativo transaccional para números de factura
+-- ------------------------------------------------------------
+CREATE TABLE Correlativos (
+    Nombre       VARCHAR(50) NOT NULL,
+    UltimoValor  INT         NOT NULL DEFAULT 0,
+
+    CONSTRAINT PK_Correlativos PRIMARY KEY (Nombre)
+) ENGINE=InnoDB;
+
+INSERT INTO Correlativos (Nombre, UltimoValor)
+SELECT 'Factura', COALESCE(MAX(Id), 0)
+FROM Facturas;
+
+-- ------------------------------------------------------------
 --  Tabla Detalle de Facturas
 -- ------------------------------------------------------------
 CREATE TABLE FacturaDetalles (
