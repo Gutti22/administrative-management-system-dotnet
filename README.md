@@ -1,5 +1,7 @@
 # Administrative Management System
 
+[![.NET CI](https://github.com/Gutti22/administrative-management-system-dotnet/actions/workflows/dotnet-ci.yml/badge.svg)](https://github.com/Gutti22/administrative-management-system-dotnet/actions/workflows/dotnet-ci.yml)
+
 A web-based administrative system built with **C#**, **.NET 8**, **Blazor Server**, **ADO.NET**, and **MySQL**.
 
 The project manages customers, products, invoicing, reporting, and application error logs using a layered architecture with explicit separation between domain contracts, application services, infrastructure, and UI.
@@ -15,6 +17,7 @@ The project manages customers, products, invoicing, reporting, and application e
 - SQL reporting for sales, customers, and low-stock products
 - Application error logging
 - Asynchronous database access with ADO.NET
+- Continuous integration with GitHub Actions
 
 ## Architecture
 
@@ -52,6 +55,7 @@ SistemaAdmin/
 - **Database:** MySQL 8
 - **Data access:** MySqlConnector
 - **Architecture:** Core · Application · Infrastructure · Web
+- **CI:** GitHub Actions
 - **Development:** Visual Studio 2022 · Git
 
 ## Data Integrity
