@@ -1,87 +1,97 @@
-# DocumentaciÛn TÈcnica ó Sistema Administrativo
+# Documentaci√≥n T√©cnica ‚Äî Sistema Administrativo
 
 ## Arquitectura
 
-Se implementÛ una arquitectura limpia de 4 capas con dependencias unidireccionales:
+Se implement√≥ una arquitectura limpia de 4 capas con dependencias unidireccionales:
 
 Web -> Application -> Core <- Infrastructure
 
-### Por quÈ esta arquitectura
+### Por qu√© esta arquitectura
 
-- `Core` no depende de ninguna tecnologÌa externa ó las entidades y contratos 
+- `Core` no depende de ninguna tecnolog√≠a externa ‚Äî las entidades y contratos 
   son estables ante cambios de framework o base de datos
 - `Infrastructure` puede reemplazarse (ej. cambiar MySQL por PostgreSQL) 
-  sin tocar la lÛgica de negocio
+  sin tocar la l√≥gica de negocio
 - `Application` concentra todas las validaciones y reglas de negocio 
   en un solo lugar testeable
 
-## Decisiones de diseÒo
+## Decisiones de dise√±o
 
 ### ADO.NET sobre Entity Framework
-Se eligiÛ ADO.NET para demostrar dominio directo del acceso a datos. 
-Permite control total sobre las queries ejecutadas y facilita la optimizaciÛn 
-de consultas crÌticas como la generaciÛn de facturas.
+Se eligi√≥ ADO.NET para demostrar dominio directo del acceso a datos. 
+Permite control total sobre las queries ejecutadas y facilita la optimizaci√≥n 
+de consultas cr√≠ticas como la generaci√≥n de facturas.
 
-### TransacciÛn en facturaciÛn
-La emisiÛn de una factura ejecuta 3 operaciones en una sola transacciÛn:
+### Transacci√≥n en facturaci√≥n
+La emisi√≥n de una factura ejecuta 3 operaciones en una sola transacci√≥n:
 1. Insertar cabecera de factura
-2. Insertar cada lÌnea de detalle
+2. Insertar cada l√≠nea de detalle
 3. Descontar stock por producto
 
-Si cualquier operaciÛn falla, la transacciÛn se revierte completamente. 
+Si cualquier operaci√≥n falla, la transacci√≥n se revierte completamente. 
 Esto garantiza que nunca quede una factura sin detalles ni stock descontado 
 sin factura correspondiente.
 
 ### ISV persistido en base de datos
 El ISV se calcula y guarda en la tabla `Facturas` en lugar de recalcularse 
-en cada consulta. Esto permite auditar facturas histÛricas correctamente 
+en cada consulta. Esto permite auditar facturas hist√≥ricas correctamente 
 aunque la tasa impositiva cambie en el futuro.
 
-### N˙mero de factura correlativo
-El n˙mero de factura se genera como `FACT-000001` usando el m·ximo ID 
-existente al momento de la inserciÛn, dentro de la misma transacciÛn. 
-Esto garantiza unicidad sin depender de secuencias externas.
+### N√∫mero de factura correlativo
+El n√∫mero de factura se genera como `FACT-000001` mediante una tabla de correlativos
+actualizada dentro de la misma transacci√≥n. La actualizaci√≥n bloquea la fila del
+correlativo mientras la transacci√≥n est√° activa, evitando que dos facturas concurrentes
+reciban el mismo n√∫mero.
 
-## Respuesta a pregunta de an·lisis
+### Integridad de precios y stock
+El precio utilizado para facturar se obtiene nuevamente desde la base de datos y no se
+conf√≠a en el valor recibido desde la interfaz. Los productos repetidos se consolidan antes
+de calcular la factura.
 
-### øPor quÈ el mÛdulo de facturas puede volverse lento con el tiempo?
+El descuento de inventario se realiza con una actualizaci√≥n condicional
+(`Stock >= Cantidad`) dentro de la transacci√≥n. Si otro proceso consume el stock antes,
+la operaci√≥n falla y toda la factura se revierte.
+
+## Respuesta a pregunta de an√°lisis
+
+### ¬øPor qu√© el m√≥dulo de facturas puede volverse lento con el tiempo?
 
 A medida que la tabla `Facturas` y `FacturaDetalles` crecen, 
 las consultas pueden degradarse por las siguientes razones:
 
-**1. Ausencia de Ìndices en columnas de filtro frecuente**
-Si se consulta por rango de fechas o por cliente sin Ìndice, 
-MySQL realiza un *full table scan* ó recorre toda la tabla fila por fila.
-*SoluciÛn:* Õndices en `Facturas.Fecha` y `Facturas.ClienteId` 
+**1. Ausencia de √≠ndices en columnas de filtro frecuente**
+Si se consulta por rango de fechas o por cliente sin √≠ndice, 
+MySQL realiza un *full table scan* ‚Äî recorre toda la tabla fila por fila.
+*Soluci√≥n:* √çndices en `Facturas.Fecha` y `Facturas.ClienteId` 
 (ya incluidos en el schema).
 
-**2. JOINs sin Ìndices en claves for·neas**
+**2. JOINs sin √≠ndices en claves for√°neas**
 El JOIN entre `FacturaDetalles` y `Productos` en los reportes puede ser 
-costoso si `ProductoId` no tiene Ìndice.
-*SoluciÛn:* Õndice en `FacturaDetalles.ProductoId` (ya incluido).
+costoso si `ProductoId` no tiene √≠ndice.
+*Soluci√≥n:* √çndice en `FacturaDetalles.ProductoId` (ya incluido).
 
-**3. Crecimiento sin paginaciÛn**
+**3. Crecimiento sin paginaci√≥n**
 Traer todas las facturas en una sola query sin LIMIT/OFFSET 
 significa cargar potencialmente millones de registros en memoria.
-*SoluciÛn:* Implementar paginaciÛn en la lista de facturas 
+*Soluci√≥n:* Implementar paginaci√≥n en la lista de facturas 
 (mejora futura recomendada).
 
-**4. C·lculos agregados en reportes sin cachÈ**
+**4. C√°lculos agregados en reportes sin cach√©**
 Los reportes de top productos y clientes recalculan SUM/COUNT 
 sobre toda la historia cada vez que se consultan.
-*SoluciÛn:* Implementar vistas materializadas o cachÈ de resultados 
-con invalidaciÛn periÛdica.
+*Soluci√≥n:* Implementar vistas materializadas o cach√© de resultados 
+con invalidaci√≥n peri√≥dica.
 
 **5. Conexiones no reutilizadas**
-Si se abren m˙ltiples conexiones simult·neas sin pool de conexiones, 
+Si se abren m√∫ltiples conexiones simult√°neas sin pool de conexiones, 
 el servidor MySQL puede saturarse.
-*SoluciÛn:* MySqlConnector maneja connection pooling autom·ticamente 
-con la configuraciÛn actual.
+*Soluci√≥n:* MySqlConnector maneja connection pooling autom√°ticamente 
+con la configuraci√≥n actual.
 
 ## Mejoras futuras recomendadas
 
-- PaginaciÛn en listados de facturas y clientes
-- AutenticaciÛn JWT para proteger los mÛdulos
-- ExportaciÛn de reportes a PDF o Excel
-- Filtros por rango de fecha en el mÛdulo de facturaciÛn
+- Paginaci√≥n en listados de facturas y clientes
+- Autenticaci√≥n JWT para proteger los m√≥dulos
+- Exportaci√≥n de reportes a PDF o Excel
+- Filtros por rango de fecha en el m√≥dulo de facturaci√≥n
 - Soft delete en lugar de cambio de estado para clientes
